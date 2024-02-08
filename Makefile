@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -lcjson -lmsgpack-c
 
 vim-sway-nav-bin: main.c
 	$(CC) $(CFLAGS) -o $@ $<

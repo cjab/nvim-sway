@@ -11,6 +11,8 @@
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
             stdenv
+            cjson
+            msgpack-c
           ];
 
           shellHook = ''

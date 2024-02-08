@@ -1,3 +1,5 @@
 .direnv
+.cache
 *.o
 vim-sway-nav-bin
+result

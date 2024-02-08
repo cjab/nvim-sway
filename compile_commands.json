@@ -1,0 +1,15 @@
+[
+  {
+    "directory": "/home/cjab/projects/cjab/vim-sway-nav-bin",
+    "arguments": [
+      "gcc",
+      "-Wall",
+      "-lcjson",
+      "-lmsgpack-c",
+      "-o",
+      "vim-sway-nav-bin",
+      "main.c"
+    ],
+    "file": "main.c"
+  }
+]
