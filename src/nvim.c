@@ -1,115 +1,8 @@
-// #include <argp.h>
-//
-// int main(int argc, char **argv) {
-// }
 #include <dirent.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
 
-#include <cjson/cJSON.h>
-#include <msgpack.h>
-
-#define SWAY_MAGIC_STR "i3-ipc"
-#define SWAY_GET_TREE 4
-
-extern char** environ;
-
-struct sway_msg {
-  char magic[6];
-  int32_t length;
-  int32_t type;
-} __attribute__((packed));
-;
-
-int connect_sway() {
-  char *socket_path = getenv("SWAYSOCK");
-  struct sockaddr_un server_addr;
-  int sockfd;
-
-  if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    perror("socket");
-    exit(EXIT_FAILURE);
-  }
-
-  memset(&server_addr, 0, sizeof(struct sockaddr_un));
-  server_addr.sun_family = AF_UNIX;
-  strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
-
-  if (connect(sockfd, (struct sockaddr *)&server_addr,
-              sizeof(struct sockaddr_un)) == -1) {
-    perror("connect");
-    close(sockfd);
-    exit(EXIT_FAILURE);
-  }
-
-  return sockfd;
-}
-
-char *get_sway_tree() {
-  char *buffer;
-  int swaysock = connect_sway();
-  struct sway_msg msg = {
-      .magic = SWAY_MAGIC_STR, .length = 0, .type = SWAY_GET_TREE};
-  if (write(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
-    fprintf(stderr, "Failed to write to sway socket\n");
-    exit(EXIT_FAILURE);
-  }
-  if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
-    fprintf(stderr, "Failed to read to sway socket\n");
-    exit(EXIT_FAILURE);
-  }
-  buffer = malloc(msg.length);
-  if (read(swaysock, buffer, msg.length) == -1) {
-    fprintf(stderr, "Failed to read to sway socket\n");
-    exit(EXIT_FAILURE);
-  }
-  close(swaysock);
-  return buffer;
-}
-
-pid_t find_focused_pid_in_tree(cJSON *root) {
-  const cJSON *focused = cJSON_GetObjectItemCaseSensitive(root, "focused");
-  if (cJSON_IsTrue(focused)) {
-    const cJSON *pid = cJSON_GetObjectItemCaseSensitive(root, "pid");
-    return pid->valueint;
-  }
-  const cJSON *nodes = cJSON_GetObjectItemCaseSensitive(root, "nodes");
-  cJSON *curr_node;
-  cJSON_ArrayForEach(curr_node, nodes) {
-    int pid = find_focused_pid_in_tree(curr_node);
-    if (pid != 0) {
-      return pid;
-    }
-  };
-  return 0;
-}
-
-pid_t find_focused_pid() {
-  char *tree = get_sway_tree();
-  cJSON *json = cJSON_Parse(tree);
-
-  if (json == NULL) {
-    const char *error_ptr = cJSON_GetErrorPtr();
-    if (error_ptr != NULL) {
-      fprintf(stderr, "Error before: %s\n", error_ptr);
-    }
-    goto end;
-  }
-
-  return find_focused_pid_in_tree(json);
-
-end:
-  cJSON_Delete(json);
-  free(tree);
-  return 0;
-}
+#include "nvim.h"
 
 pid_t find_nvim_pid(pid_t parent_pid) {
   char buffer[1024];
@@ -205,18 +98,38 @@ int connect_nvim(char *socket_path) {
   return sockfd;
 }
 
-void nvim_command(int sock, char *cmd) {
+void nvim_command(int sock) {
   static uint32_t msgid = 0;
   uint32_t type = 0;
-  char *args[] = {
-    "echo",
-    "\"Hello, World\"",
-  };
+  char *method = "nvim_command";
+  char *cmd = "echo \"Hello, World\"";
+  msgpack_sbuffer sbuf;
+  msgpack_packer pk;
 
-  write(sock, &type, sizeof(uint32_t));
-  write(sock, &msgid, sizeof(uint32_t));
-  //write(sock, &cmd, strlen(cmd) + 1);
-  write(sock, "nvim_command", strlen(cmd) + 1);
+  msgpack_sbuffer_init(&sbuf);
+  msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
+
+  msgpack_pack_array(&pk, 4);
+  msgpack_pack_int(&pk, 0); // Type
+  msgpack_pack_uint32(&pk, msgid); // Msgid
+  msgpack_pack_int(&pk, msgid); // Msgid
+  msgpack_pack_str(&pk, strlen(method));
+  msgpack_pack_str_body(&pk, method, strlen(method)); // Method
+  msgpack_pack_array(&pk, 1);
+  msgpack_pack_str(&pk, strlen(cmd));
+  msgpack_pack_str_body(&pk, cmd, strlen(cmd)); // Args
+
+  if (write(sock, &type, sizeof(uint32_t)) == -1) {
+    fprintf(stderr, "Failed to write\n");
+    exit(EXIT_FAILURE);
+  }
+  write(sock, sbuf.data, sbuf.size);
+
+  uint32_t recvd_msgid = 0;
+  read(sock, &recvd_msgid, sizeof(uint32_t));
+  printf("RECIEVED: %d", recvd_msgid);
+  //if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+  printf("AAAAAAAAAAA");
   msgid += 1;
 }
 
@@ -240,6 +153,9 @@ void move_focus(pid_t nvim_pid, char *direction) {
   char cmd_buffer[32];
 
   int nvimsock = connect_nvim(server_run_file);
+
+  printf("HERE");
+  nvim_command(nvimsock);
 
   //if (write(nvimsock, &msg, sizeof(struct sway_msg)) == -1) {
   //  fprintf(stderr, "Failed to write to sway socket\n");
@@ -270,27 +186,4 @@ void move_focus(pid_t nvim_pid, char *direction) {
   //  perror("failed to exec");
   //  exit(EXIT_FAILURE);
   //}
-}
-
-int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    fprintf(stderr, "Usage: %s <left | right | up | down>\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
-  char *direction = argv[1];
-
-  pid_t focused_pid = find_focused_pid();
-  pid_t nvim_pid = find_nvim_pid(focused_pid);
-
-  printf("focused_pid: %d\n", focused_pid);
-
-  if (nvim_pid == 0) {
-    return 0;
-  }
-
-  printf("nvim_pid: %d\n", nvim_pid);
-
-  move_focus(nvim_pid, direction);
-
-  return 0;
 }
