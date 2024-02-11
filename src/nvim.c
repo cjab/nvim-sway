@@ -98,41 +98,6 @@ int connect_nvim(char *socket_path) {
   return sockfd;
 }
 
-void nvim_command(int sock) {
-  static uint32_t msgid = 0;
-  uint32_t type = 0;
-  char *method = "nvim_command";
-  char *cmd = "echo \"Hello, World\"";
-  msgpack_sbuffer sbuf;
-  msgpack_packer pk;
-
-  msgpack_sbuffer_init(&sbuf);
-  msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
-
-  msgpack_pack_array(&pk, 4);
-  msgpack_pack_int(&pk, 0); // Type
-  msgpack_pack_uint32(&pk, msgid); // Msgid
-  msgpack_pack_int(&pk, msgid); // Msgid
-  msgpack_pack_str(&pk, strlen(method));
-  msgpack_pack_str_body(&pk, method, strlen(method)); // Method
-  msgpack_pack_array(&pk, 1);
-  msgpack_pack_str(&pk, strlen(cmd));
-  msgpack_pack_str_body(&pk, cmd, strlen(cmd)); // Args
-
-  if (write(sock, &type, sizeof(uint32_t)) == -1) {
-    fprintf(stderr, "Failed to write\n");
-    exit(EXIT_FAILURE);
-  }
-  write(sock, sbuf.data, sbuf.size);
-
-  uint32_t recvd_msgid = 0;
-  read(sock, &recvd_msgid, sizeof(uint32_t));
-  printf("RECIEVED: %d", recvd_msgid);
-  //if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
-  printf("AAAAAAAAAAA");
-  msgid += 1;
-}
-
 void move_focus(pid_t nvim_pid, char *direction) {
   char run_file_path[2048];
   snprintf(run_file_path, sizeof(run_file_path), "%s/vim-sway-nav.%d.servername",
@@ -145,45 +110,51 @@ void move_focus(pid_t nvim_pid, char *direction) {
     return;
   }
 
-
   char *save_ptr;
-  char *program = strtok_r(server_info, " ", &save_ptr);
+  // Move past program token in file
+  strtok_r(server_info, " ", &save_ptr);
   char *server_run_file = strtok_r(NULL, " ", &save_ptr);
   server_run_file[strcspn(server_run_file, "\n")] = 0;
-  char cmd_buffer[32];
+  char cmd_buffer[40];
+
+  printf("runfile: %s", server_run_file);
 
   int nvimsock = connect_nvim(server_run_file);
 
-  printf("HERE");
-  nvim_command(nvimsock);
+  static uint32_t msgid = 0;
+  uint32_t type = 0;
+  char *method = "nvim_command";
+  msgpack_sbuffer sbuf;
+  msgpack_packer pk;
 
-  //if (write(nvimsock, &msg, sizeof(struct sway_msg)) == -1) {
-  //  fprintf(stderr, "Failed to write to sway socket\n");
-  //  exit(EXIT_FAILURE);
-  //}
-  //if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
-  //  fprintf(stderr, "Failed to read to sway socket\n");
-  //  exit(EXIT_FAILURE);
-  //}
+  snprintf(cmd_buffer, sizeof(cmd_buffer), "exec VimSwayNav('%s')", direction);
 
+  printf("=> %s", cmd_buffer);
+
+  msgpack_sbuffer_init(&sbuf);
+  msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
+
+  msgpack_pack_array(&pk, 4);
+  msgpack_pack_int(&pk, type); // Type
+  msgpack_pack_uint32(&pk, msgid); // Msgid
+  msgpack_pack_str(&pk, strlen(method));
+  msgpack_pack_str_body(&pk, method, strlen(method)); // Method
+  msgpack_pack_array(&pk, 1);
+  msgpack_pack_str(&pk, strlen(cmd_buffer));
+  msgpack_pack_str_body(&pk, cmd_buffer, strlen(cmd_buffer)); // Args
+
+  if(write(nvimsock, sbuf.data, sbuf.size) == -1) {
+    fprintf(stderr, "Failed to write\n");
+    exit(EXIT_FAILURE);
+  }
+
+  char recvd[5];
+  if (read(nvimsock, &recvd, 5) == -1) {
+    fprintf(stderr, "Failed to read\n");
+    exit(EXIT_FAILURE);
+  }
+
+  msgid += 1;
 
   close(nvimsock);
-
-  //snprintf(cmd_buffer, sizeof(cmd_buffer), "\"VimSwayNav('%s')\"", direction);
-  //char *args[] = {
-  //  NULL,
-  //  "-c",
-  //  program,
-  //  "--server",
-  //  server_name,
-  //  "--remote-expr",
-  //  cmd_buffer,
-  //  NULL
-  //};
-  //printf("%s --server %s --remote-expr %s", program, server_name, cmd_buffer);
-  //fclose(run_file);
-  //if (execve("/etc/profiles/per-user/cjab/bin/zsh", args, environ) == -1) {
-  //  perror("failed to exec");
-  //  exit(EXIT_FAILURE);
-  //}
 }
