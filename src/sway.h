@@ -3,6 +3,7 @@
 
 #define SWAY_MAGIC_STR "i3-ipc"
 #define SWAY_GET_TREE 4
+#define SWAY_RUN_COMMAND 0
 
 struct sway_msg {
   char magic[6];
@@ -12,5 +13,6 @@ struct sway_msg {
 
 int connect_sway();
 char *get_sway_tree();
+char *sway_move_focus(char *direction);
 pid_t find_focused_pid_in_tree(cJSON *root);
 pid_t find_focused_pid();

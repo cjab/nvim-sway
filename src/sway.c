@@ -52,6 +52,35 @@ char *get_sway_tree() {
   return buffer;
 }
 
+char *sway_move_focus(char *direction) {
+  char *buffer;
+  int swaysock = connect_sway();
+  char cmd_buffer[12];
+  snprintf(cmd_buffer, sizeof(cmd_buffer), "focus %s", direction);
+  struct sway_msg msg = {
+    .magic = SWAY_MAGIC_STR, .length = strlen(cmd_buffer), .type = SWAY_RUN_COMMAND
+  };
+  if (write(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+    fprintf(stderr, "Failed to write to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  if (write(swaysock, &cmd_buffer, strlen(cmd_buffer)) == -1) {
+    fprintf(stderr, "Failed to write to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+    fprintf(stderr, "Failed to read to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  buffer = malloc(msg.length);
+  if (read(swaysock, buffer, msg.length) == -1) {
+    fprintf(stderr, "Failed to read to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  close(swaysock);
+  return buffer;
+}
+
 pid_t find_focused_pid_in_tree(cJSON *root) {
   const cJSON *focused = cJSON_GetObjectItemCaseSensitive(root, "focused");
   if (cJSON_IsTrue(focused)) {
