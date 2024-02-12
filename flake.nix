@@ -8,6 +8,10 @@
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = import nixpkgs { inherit system; };
       in {
+        packages = {
+          nvim-sway = pkgs.callPackage ./nix/nvim-sway.nix { };
+        };
+
         devShell = pkgs.mkShell {
           buildInputs = with pkgs; [
             stdenv
