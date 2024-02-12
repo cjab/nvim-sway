@@ -98,7 +98,7 @@ int connect_nvim(char *socket_path) {
   return sockfd;
 }
 
-void move_focus(pid_t nvim_pid, char *direction) {
+void nvim_move_focus(pid_t nvim_pid, char *direction) {
   char run_file_path[2048];
   snprintf(run_file_path, sizeof(run_file_path), "%s/vim-sway-nav.%d.servername",
            getenv("XDG_RUNTIME_DIR"), nvim_pid);

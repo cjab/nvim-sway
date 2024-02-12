@@ -1,5 +1,5 @@
 .direnv
 .cache
 *.o
-vim-sway-nav-bin
+nvim-sway
 result
