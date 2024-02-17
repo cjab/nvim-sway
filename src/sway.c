@@ -6,12 +6,11 @@
 
 #include "sway.h"
 
-int connect_sway() {
-  char *socket_path = getenv("SWAYSOCK");
+sway_session_t sway_connect(char *socket_path) {
   struct sockaddr_un server_addr;
-  int sockfd;
+  int sock;
 
-  if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+  if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
     exit(EXIT_FAILURE);
   }
@@ -20,65 +19,88 @@ int connect_sway() {
   server_addr.sun_family = AF_UNIX;
   strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
 
-  if (connect(sockfd, (struct sockaddr *)&server_addr,
+  if (connect(sock, (struct sockaddr *)&server_addr,
               sizeof(struct sockaddr_un)) == -1) {
     perror("connect");
-    close(sockfd);
+    close(sock);
     exit(EXIT_FAILURE);
   }
 
-  return sockfd;
+  return sock;
 }
 
-char *get_sway_tree() {
+void sway_disconnect(sway_session_t session) {
+  close(session);
+}
+
+char *sway_get_tree(sway_session_t session) {
   char *buffer;
-  int swaysock = connect_sway();
   struct sway_msg msg = {
-      .magic = SWAY_MAGIC_STR, .length = 0, .type = SWAY_GET_TREE};
-  if (write(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+    .magic = SWAY_MAGIC_STR,
+    .length = 0,
+    .type = SWAY_GET_TREE
+  };
+  if (write((int)session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+  if (read(session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to read to sway socket\n");
     exit(EXIT_FAILURE);
   }
   buffer = malloc(msg.length);
-  if (read(swaysock, buffer, msg.length) == -1) {
+  if (read(session, buffer, msg.length) == -1) {
     fprintf(stderr, "Failed to read to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  close(swaysock);
   return buffer;
 }
 
-char *sway_move_focus(char *direction) {
+char *sway_move_focus(sway_session_t session, char *direction) {
   char *buffer;
-  int swaysock = connect_sway();
   char cmd_buffer[12];
   snprintf(cmd_buffer, sizeof(cmd_buffer), "focus %s", direction);
   struct sway_msg msg = {
     .magic = SWAY_MAGIC_STR, .length = strlen(cmd_buffer), .type = SWAY_RUN_COMMAND
   };
-  if (write(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+  if (write(session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  if (write(swaysock, &cmd_buffer, strlen(cmd_buffer)) == -1) {
+  if (write(session, &cmd_buffer, strlen(cmd_buffer)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  if (read(swaysock, &msg, sizeof(struct sway_msg)) == -1) {
+  if (read(session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to read to sway socket\n");
     exit(EXIT_FAILURE);
   }
   buffer = malloc(msg.length);
-  if (read(swaysock, buffer, msg.length) == -1) {
+  if (read(session, buffer, msg.length) == -1) {
     fprintf(stderr, "Failed to read to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  close(swaysock);
   return buffer;
+}
+
+pid_t sway_get_focused_pid(sway_session_t session) {
+  char *tree = sway_get_tree(session);
+  cJSON *json = cJSON_Parse(tree);
+
+  if (json == NULL) {
+    const char *error_ptr = cJSON_GetErrorPtr();
+    if (error_ptr != NULL) {
+      fprintf(stderr, "Error before: %s\n", error_ptr);
+    }
+    goto end;
+  }
+
+  return find_focused_pid_in_tree(json);
+
+end:
+  cJSON_Delete(json);
+  free(tree);
+  return 0;
 }
 
 pid_t find_focused_pid_in_tree(cJSON *root) {
@@ -95,25 +117,5 @@ pid_t find_focused_pid_in_tree(cJSON *root) {
       return pid;
     }
   };
-  return 0;
-}
-
-pid_t find_focused_pid() {
-  char *tree = get_sway_tree();
-  cJSON *json = cJSON_Parse(tree);
-
-  if (json == NULL) {
-    const char *error_ptr = cJSON_GetErrorPtr();
-    if (error_ptr != NULL) {
-      fprintf(stderr, "Error before: %s\n", error_ptr);
-    }
-    goto end;
-  }
-
-  return find_focused_pid_in_tree(json);
-
-end:
-  cJSON_Delete(json);
-  free(tree);
   return 0;
 }

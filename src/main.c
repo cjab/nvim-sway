@@ -13,23 +13,26 @@ int main(int argc, char *argv[]) {
   }
   char *direction = argv[1];
 
-  pid_t focused_pid = find_focused_pid();
+  char *socket_path = getenv("SWAYSOCK");
+  sway_session_t sway = sway_connect(socket_path);
+  pid_t focused_pid = sway_get_focused_pid(sway);
   pid_t nvim_pid = find_nvim_pid(focused_pid);
 
   if (nvim_pid == 0) {
-    sway_move_focus(direction);
+    sway_move_focus(sway, direction);
+    sway_disconnect(sway);
     return 0;
   }
 
   nvim_session_t *nvim = nvim_connect(nvim_pid);
-
   if (nvim_get_focus(nvim) == nvim_get_next_focus(nvim, direction)) {
-    sway_move_focus(direction);
+    sway_move_focus(sway, direction);
   } else {
     nvim_move_focus(nvim, direction);
   }
 
   nvim_disconnect(nvim);
+  sway_disconnect(sway);
 
   return 0;
 }

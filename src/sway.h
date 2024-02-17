@@ -11,8 +11,13 @@ struct sway_msg {
   int32_t type;
 } __attribute__((packed));
 
-int connect_sway();
-char *get_sway_tree();
-char *sway_move_focus(char *direction);
+typedef int sway_session_t;
+
+sway_session_t sway_connect(char *socket_path);
+void sway_disconnect(sway_session_t session);
+
+char *sway_get_tree(sway_session_t session);
+char *sway_move_focus(sway_session_t session, char *direction);
+pid_t sway_get_focused_pid(sway_session_t session);
+
 pid_t find_focused_pid_in_tree(cJSON *root);
-pid_t find_focused_pid();
