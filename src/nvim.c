@@ -4,6 +4,8 @@
 
 #include "nvim.h"
 
+#define UNPACKED_BUFFER_SIZE 2048
+
 pid_t find_nvim_pid(pid_t parent_pid) {
   char buffer[1024];
   FILE *f;
@@ -75,7 +77,7 @@ pid_t find_nvim_pid(pid_t parent_pid) {
   return 0;
 }
 
-int connect_nvim(char *socket_path) {
+int nvim_connect_socket(char *socket_path) {
   struct sockaddr_un server_addr;
   int sockfd;
 
@@ -98,16 +100,18 @@ int connect_nvim(char *socket_path) {
   return sockfd;
 }
 
-void nvim_move_focus(pid_t nvim_pid, char *direction) {
+nvim_session_t *nvim_connect(pid_t nvim_pid) {
   char run_file_path[2048];
-  snprintf(run_file_path, sizeof(run_file_path), "%s/vim-sway-nav.%d.servername",
+  snprintf(run_file_path, sizeof(run_file_path),
+           "%s/vim-sway-nav.%d.servername",
            getenv("XDG_RUNTIME_DIR"), nvim_pid);
   FILE *run_file = fopen(run_file_path, "r");
+
   char server_info[1024];
   if (!fgets(server_info, sizeof(server_info), run_file)) {
     // This task has no children
     fclose(run_file);
-    return;
+    return 0;
   }
 
   char *save_ptr;
@@ -115,46 +119,195 @@ void nvim_move_focus(pid_t nvim_pid, char *direction) {
   strtok_r(server_info, " ", &save_ptr);
   char *server_run_file = strtok_r(NULL, " ", &save_ptr);
   server_run_file[strcspn(server_run_file, "\n")] = 0;
-  char cmd_buffer[40];
 
-  printf("runfile: %s", server_run_file);
+  nvim_session_t *session = malloc(sizeof(nvim_session_t));
+  session->sock = nvim_connect_socket(server_run_file);
+  session->next_msgid = 0;
+  return session;
+}
 
-  int nvimsock = connect_nvim(server_run_file);
+void nvim_disconnect(nvim_session_t *session) {
+  close(session->sock);
+  free(session);
+}
 
-  static uint32_t msgid = 0;
+void nvim_command(nvim_session_t *session, char *cmd) {
   uint32_t type = 0;
   char *method = "nvim_command";
+
   msgpack_sbuffer sbuf;
   msgpack_packer pk;
-
-  snprintf(cmd_buffer, sizeof(cmd_buffer), "exec VimSwayNav('%s')", direction);
-
-  printf("=> %s", cmd_buffer);
-
   msgpack_sbuffer_init(&sbuf);
   msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
 
   msgpack_pack_array(&pk, 4);
   msgpack_pack_int(&pk, type); // Type
-  msgpack_pack_uint32(&pk, msgid); // Msgid
+  msgpack_pack_uint32(&pk, session->next_msgid); // Msgid
   msgpack_pack_str(&pk, strlen(method));
   msgpack_pack_str_body(&pk, method, strlen(method)); // Method
   msgpack_pack_array(&pk, 1);
-  msgpack_pack_str(&pk, strlen(cmd_buffer));
-  msgpack_pack_str_body(&pk, cmd_buffer, strlen(cmd_buffer)); // Args
+  msgpack_pack_str(&pk, strlen(cmd));
+  msgpack_pack_str_body(&pk, cmd, strlen(cmd)); // Args
 
-  if(write(nvimsock, sbuf.data, sbuf.size) == -1) {
+  if(write(session->sock, sbuf.data, sbuf.size) == -1) {
     fprintf(stderr, "Failed to write\n");
     exit(EXIT_FAILURE);
   }
 
-  char recvd[5];
-  if (read(nvimsock, &recvd, 5) == -1) {
+  // We're not interested in the response of the command
+  // but we still need to move past it.
+  nvim_receive(session);
+
+  session->next_msgid += 1;
+}
+
+msgpack_object nvim_eval(nvim_session_t *session, char *expression) {
+  uint32_t type = 0;
+  char *method = "nvim_eval";
+
+  msgpack_sbuffer sbuf;
+  msgpack_packer pk;
+  msgpack_sbuffer_init(&sbuf);
+  msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
+
+  msgpack_pack_array(&pk, 4);
+  msgpack_pack_int(&pk, type); // Type
+  msgpack_pack_uint32(&pk, session->next_msgid); // Msgid
+  msgpack_pack_str(&pk, strlen(method));
+  msgpack_pack_str_body(&pk, method, strlen(method)); // Method
+  msgpack_pack_array(&pk, 1);
+  msgpack_pack_str(&pk, strlen(expression));
+  msgpack_pack_str_body(&pk, expression, strlen(expression)); // Args
+
+  if(write(session->sock, sbuf.data, sbuf.size) == -1) {
+    fprintf(stderr, "Failed to write\n");
+    exit(EXIT_FAILURE);
+  }
+
+  msgpack_object res = nvim_receive(session);
+  session->next_msgid += 1;
+
+  return res;
+}
+
+msgpack_object nvim_receive(nvim_session_t *session) {
+  char buffer[UNPACKED_BUFFER_SIZE];
+
+  int len = read(session->sock, &buffer, sizeof(buffer));
+  if (len == -1) {
     fprintf(stderr, "Failed to read\n");
     exit(EXIT_FAILURE);
   }
 
-  msgid += 1;
+  msgpack_unpacked result;
+  msgpack_unpacked_init(&result);
 
-  close(nvimsock);
+  size_t off = 0;
+  msgpack_unpack_return ret;
+  ret = msgpack_unpack_next(&result, buffer, len, &off);
+
+  if (ret == MSGPACK_UNPACK_PARSE_ERROR) {
+    fprintf(stderr, "Failed to parse received nvim message.\n");
+    exit(EXIT_FAILURE);
+  } else if (ret == MSGPACK_UNPACK_EXTRA_BYTES) {
+    fprintf(stderr, "Parsed nvim message but extra bytes existed.\n");
+    exit(EXIT_FAILURE);
+  } else if (ret == MSGPACK_UNPACK_CONTINUE) {
+    fprintf(stderr, "Did not have enough bytes to parse nvim message.\n");
+    exit(EXIT_FAILURE);
+  } else if (ret == MSGPACK_UNPACK_NOMEM_ERROR) {
+    fprintf(stderr, "Ran out of memory while parsing nvim message.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // MSGPACK_UNPACK_SUCCESS
+  msgpack_object obj = result.data;
+
+  if (obj.type != MSGPACK_OBJECT_ARRAY) {
+    fprintf(stderr, "Nvim response was not an array.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  msgpack_object_array array = obj.via.array;
+  if (array.size != 4) {
+    fprintf(stderr, "Nvim response array had %d elements (requires 4).\n", array.size);
+    exit(EXIT_FAILURE);
+  }
+
+  if (array.ptr[0].type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
+    fprintf(stderr, "First element of the nvim response was not an integer.\n");
+    exit(EXIT_FAILURE);
+  }
+  uint64_t type = array.ptr[0].via.u64;
+  if (type != 1) {
+    fprintf(stderr, "Nvim response type is incorrect: %ld.\n", type);
+    exit(EXIT_FAILURE);
+  }
+
+  if (array.ptr[1].type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
+    fprintf(stderr, "Second element of the nvim response was not an integer.\n");
+    exit(EXIT_FAILURE);
+  }
+  uint64_t msgid = array.ptr[1].via.u64;
+  if (msgid != session->next_msgid) {
+    fprintf(stderr, "Received nvim response out of order\n");
+    exit(EXIT_FAILURE);
+  }
+
+  if (array.ptr[2].type != MSGPACK_OBJECT_NIL) {
+    fprintf(stderr, "Third element of the nvim contained an error.\n");
+    exit(EXIT_FAILURE);
+  }
+
+  msgpack_object payload = array.ptr[3];
+  msgpack_unpacked_destroy(&result);
+
+  return payload;
+}
+
+uint64_t nvim_get_focus(nvim_session_t *session) {
+  msgpack_object res = nvim_eval(session, "winnr()");
+
+  if (res.type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
+    fprintf(stderr, "Invalid nvim_get_focus response\n");
+    exit(EXIT_FAILURE);
+  }
+  return res.via.u64;
+}
+
+char dir_to_key(char *direction) {
+  char dir;
+  if (strcmp(direction, "left") == 0) {
+    dir = 'h';
+  } else if (strcmp(direction, "right") == 0) {
+    dir = 'l';
+  } else if (strcmp(direction, "up") == 0) {
+    dir = 'k';
+  } else if (strcmp(direction, "down") == 0) {
+    dir = 'j';
+  } else {
+    fprintf(stderr, "Invalid direction\n");
+    exit(EXIT_FAILURE);
+  }
+  return dir;
+}
+
+uint64_t nvim_get_next_focus(nvim_session_t *session, char *direction) {
+  char key = dir_to_key(direction);
+  char buffer[11];
+  snprintf(buffer, sizeof(buffer), "winnr('%c')", key);
+  msgpack_object res = nvim_eval(session, buffer);
+  if (res.type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
+    fprintf(stderr, "Invalid nvim_get_focus response\n");
+    exit(EXIT_FAILURE);
+  }
+
+  return res.via.u64;
+}
+
+void nvim_move_focus(nvim_session_t *session, char *direction) {
+  char key = dir_to_key(direction);
+  char buffer[9];
+  snprintf(buffer, sizeof(buffer), "wincmd %c", key);
+  nvim_command(session, buffer);
 }

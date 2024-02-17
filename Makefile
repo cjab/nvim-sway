@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -lcjson -lmsgpack-c
 
-nvim-sway: nvim.o sway.o src/main.c
+nvim-sway: src/main.c nvim.o sway.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 nvim.o: src/nvim.c

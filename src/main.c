@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "sway.h"
 #include "nvim.h"
@@ -19,6 +20,16 @@ int main(int argc, char *argv[]) {
     sway_move_focus(direction);
     return 0;
   }
-  nvim_move_focus(nvim_pid, direction);
+
+  nvim_session_t *nvim = nvim_connect(nvim_pid);
+
+  if (nvim_get_focus(nvim) == nvim_get_next_focus(nvim, direction)) {
+    sway_move_focus(direction);
+  } else {
+    nvim_move_focus(nvim, direction);
+  }
+
+  nvim_disconnect(nvim);
+
   return 0;
 }
