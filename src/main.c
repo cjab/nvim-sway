@@ -25,7 +25,10 @@ int main(int argc, char *argv[]) {
   }
 
   nvim_session_t nvim;
-  nvim_connect(&nvim, nvim_pid);
+  char *path = nvim_socket_path(nvim_pid);
+  nvim_connect(&nvim, path);
+  free(path);
+
   if (nvim_get_focus(&nvim) == nvim_get_next_focus(&nvim, direction)) {
     sway_move_focus(sway, direction);
   } else {

@@ -5,6 +5,7 @@
 #include "nvim.h"
 
 #define UNPACKED_BUFFER_SIZE 2048
+#define MAX_PID_LEN 7
 
 pid_t find_nvim_pid(pid_t parent_pid) {
   char buffer[1024];
@@ -77,11 +78,28 @@ pid_t find_nvim_pid(pid_t parent_pid) {
   return 0;
 }
 
-int nvim_connect_socket(char *socket_path) {
-  struct sockaddr_un server_addr;
-  int sockfd;
+char *nvim_socket_path(pid_t pid) {
+  char *buffer;
+  char *xdg_dir = getenv("XDG_RUNTIME_DIR");
+  if (xdg_dir) {
+    int len = strlen(xdg_dir) + MAX_PID_LEN + 9; // 9 = Template len + null char
+    buffer = malloc(len);
+    snprintf(buffer, len, "%s/nvim.%d.0", xdg_dir, pid);
+  } else {
+    char *tmp_dir = getenv("TMPDIR");
+    char *user = getenv("USER");
+    int len = strlen(tmp_dir) + strlen(user) + MAX_PID_LEN + 14; // 14 = Template len + null char
+    buffer = malloc(len);
+    snprintf(buffer, 2048, "%snvim.%s/nvim.%d.0", tmp_dir, user, pid);
+  }
+  return buffer;
+}
 
-  if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+void nvim_connect(nvim_session_t *session, char *socket_path) {
+  struct sockaddr_un server_addr;
+  int sock;
+
+  if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
     exit(EXIT_FAILURE);
   }
@@ -90,22 +108,14 @@ int nvim_connect_socket(char *socket_path) {
   server_addr.sun_family = AF_UNIX;
   strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
 
-  if (connect(sockfd, (struct sockaddr *)&server_addr,
+  if (connect(sock, (struct sockaddr *)&server_addr,
               sizeof(struct sockaddr_un)) == -1) {
     perror("connect");
-    close(sockfd);
+    close(sock);
     exit(EXIT_FAILURE);
   }
 
-  return sockfd;
-}
-
-void nvim_connect(nvim_session_t *session, pid_t nvim_pid) {
-  char run_file_path[2048];
-  snprintf(run_file_path, sizeof(run_file_path),
-           "%s/nvim.%d.0",
-           getenv("XDG_RUNTIME_DIR"), nvim_pid);
-  session->sock = nvim_connect_socket(run_file_path);
+  session->sock = sock;
   session->next_msgid = 0;
 }
 
