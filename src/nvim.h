@@ -9,7 +9,7 @@ typedef struct nvim_session {
 
 pid_t find_nvim_pid(pid_t parent_pid);
 
-nvim_session_t *nvim_connect(pid_t nvim_pid);
+void nvim_connect(nvim_session_t *session, pid_t nvim_pid);
 void nvim_disconnect(nvim_session_t *session);
 
 void nvim_command(nvim_session_t *session, char *cmd);

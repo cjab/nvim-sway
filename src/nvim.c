@@ -100,35 +100,17 @@ int nvim_connect_socket(char *socket_path) {
   return sockfd;
 }
 
-nvim_session_t *nvim_connect(pid_t nvim_pid) {
+void nvim_connect(nvim_session_t *session, pid_t nvim_pid) {
   char run_file_path[2048];
   snprintf(run_file_path, sizeof(run_file_path),
-           "%s/vim-sway-nav.%d.servername",
+           "%s/nvim.%d.0",
            getenv("XDG_RUNTIME_DIR"), nvim_pid);
-  FILE *run_file = fopen(run_file_path, "r");
-
-  char server_info[1024];
-  if (!fgets(server_info, sizeof(server_info), run_file)) {
-    // This task has no children
-    fclose(run_file);
-    return 0;
-  }
-
-  char *save_ptr;
-  // Move past program token in file
-  strtok_r(server_info, " ", &save_ptr);
-  char *server_run_file = strtok_r(NULL, " ", &save_ptr);
-  server_run_file[strcspn(server_run_file, "\n")] = 0;
-
-  nvim_session_t *session = malloc(sizeof(nvim_session_t));
-  session->sock = nvim_connect_socket(server_run_file);
+  session->sock = nvim_connect_socket(run_file_path);
   session->next_msgid = 0;
-  return session;
 }
 
 void nvim_disconnect(nvim_session_t *session) {
   close(session->sock);
-  free(session);
 }
 
 void nvim_command(nvim_session_t *session, char *cmd) {
