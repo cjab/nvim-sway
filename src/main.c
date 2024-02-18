@@ -74,6 +74,25 @@ int focus(char *direction) {
 
   if (nvim_pid == 0) {
     sway_move_focus(sway, direction);
+    pid_t next_focused_pid = sway_get_focused_pid(sway);
+    pid_t next_nvim_pid = find_nvim_pid(next_focused_pid);
+    if (next_nvim_pid != 0) {
+      nvim_session_t nvim;
+      char *path = nvim_socket_path(next_nvim_pid);
+      printf("NEXT: %s", path);
+      nvim_connect(&nvim, path);
+      free(path);
+      if (strcmp("left", direction) == 0) {
+        nvim_move_focus(&nvim, "right", 999);
+      } else if (strcmp("right", direction) == 0) {
+        nvim_move_focus(&nvim, "left", 999);
+      } else if (strcmp("up", direction) == 0) {
+        nvim_move_focus(&nvim, "down", 999);
+      } else if (strcmp("down", direction) == 0) {
+        nvim_move_focus(&nvim, "up", 999);
+      }
+      nvim_disconnect(&nvim);
+    }
     sway_disconnect(sway);
     return 0;
   }
@@ -86,7 +105,7 @@ int focus(char *direction) {
   if (nvim_get_focus(&nvim) == nvim_get_next_focus(&nvim, direction)) {
     sway_move_focus(sway, direction);
   } else {
-    nvim_move_focus(&nvim, direction);
+    nvim_move_focus(&nvim, direction, 1);
   }
 
   nvim_disconnect(&nvim);

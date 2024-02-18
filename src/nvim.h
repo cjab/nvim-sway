@@ -18,6 +18,6 @@ msgpack_object nvim_eval(nvim_session_t *session, char *cmd);
 
 uint64_t nvim_get_focus(nvim_session_t *session);
 uint64_t nvim_get_next_focus(nvim_session_t *session, char *direction);
-void nvim_move_focus(nvim_session_t *session, char *direction);
+void nvim_move_focus(nvim_session_t *session, char *direction, int count);
 
 msgpack_object nvim_receive(nvim_session_t *session);

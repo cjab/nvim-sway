@@ -297,9 +297,9 @@ uint64_t nvim_get_next_focus(nvim_session_t *session, char *direction) {
   return res.via.u64;
 }
 
-void nvim_move_focus(nvim_session_t *session, char *direction) {
+void nvim_move_focus(nvim_session_t *session, char *direction, int count) {
   char key = dir_to_key(direction);
-  char buffer[9];
-  snprintf(buffer, sizeof(buffer), "wincmd %c", key);
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "wincmd %d %c", count, key);
   nvim_command(session, buffer);
 }
