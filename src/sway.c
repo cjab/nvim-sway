@@ -86,6 +86,7 @@ char *sway_move_focus(sway_session_t session, char *direction) {
 pid_t sway_get_focused_pid(sway_session_t session) {
   char *tree = sway_get_tree(session);
   cJSON *json = cJSON_Parse(tree);
+  pid_t focused_pid = 0;
 
   if (json == NULL) {
     const char *error_ptr = cJSON_GetErrorPtr();
@@ -95,12 +96,13 @@ pid_t sway_get_focused_pid(sway_session_t session) {
     goto end;
   }
 
-  return find_focused_pid_in_tree(json);
+  focused_pid = find_focused_pid_in_tree(json);
 
 end:
   cJSON_Delete(json);
   free(tree);
-  return 0;
+
+  return focused_pid;
 }
 
 pid_t find_focused_pid_in_tree(cJSON *root) {
