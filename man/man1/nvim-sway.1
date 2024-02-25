@@ -1,0 +1,54 @@
+.TH nvim-sway 1
+.SH NAME
+nvim-sway \- navigate between sway windows and neovim splits
+.SH SYNOPSIS
+.B nvim-sway
+\fR<\fIleft\fR|\fIright\fR|\fIup\fR|\fIdown\fR>
+.SH DESCRIPTION
+.B nvim-sway
+allows navigation between both sway windows and neovim splits.
+It does this using neovim and sway rpc.
+No neovim plugins are required.
+However, it does require a recent version of neovim.
+.PP Communication with sway is done over the socket found in the \fI$SWAYSOCK\fI environment variable.
+The neovim socket is found by first finding the pid of the target neovim instance and then searching for in the standard neovim socket locations.
+These are \%"\fI$XDG_RUNTIME_DIR\fR"\: and \%"\fI$TMPDIR/nvim.$USER\fR"\:.
+.SH OPTIONS
+.TP
+.BR \-? ", " \-\-help
+Print a help message.
+.TP
+.BR \-\-usage
+Print a short usage message.
+.TP
+.BR \-V ", " \-\-version
+Print the version.
+.SH ENVIRONMENT
+.TP
+.BR SWAYSOCK
+Specifies the path to the sway IPC socket.
+.TP
+.BR XDG_RUNTIME_DIR
+If \%"\fI$XDG_RUNTIME_DIR\fR"\: is set the specified directory will be searched for a neovim socket.
+.TP
+.BR TMP_DIR
+If \%"\fI$XDG_RUNTIME_DIR\fR"\: is not set the tmp directory will be searched for a neovim socket.
+.TP
+.BR USER
+\%"\fI$USER\fR"\: is also used to construct the neovim socket path in the absence of \%"\fI$XDG_RUNTIME_DIR\fR"\:.
+.SH EXAMPLES
+.TP
+.BR nvim-sway " " left
+Move neovim split or sway window focus to the left.
+.TP
+.BR nvim-sway " " right
+Move neovim split or sway window focus to the right.
+.TP
+.BR nvim-sway " " up
+Move neovim split or sway window focus up.
+.TP
+.BR nvim-sway " " down
+Move neovim split or sway window focus down.
+.SH AUTHORS
+Maintained by Chad Jablonski <chad@jablonski.xyz>.
+For more information about nvim-sway development, see <https://github.com/cjab/nvim-sway>.

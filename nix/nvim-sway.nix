@@ -17,6 +17,8 @@ stdenv.mkDerivation {
   installPhase = ''
     mkdir -p $out/bin
     cp nvim-sway $out/bin/
+    mkdir -p $out/share/
+    cp -r man $out/share/
   '';
 
   meta = with lib; {
