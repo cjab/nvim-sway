@@ -1,6 +1,10 @@
 nvim-sway
 =========
 
+
+https://github.com/cjab/nvim-sway/assets/136485/6d20ac66-0733-44b0-a94d-82a59995a0fc
+
+
 `nvim-sway` allows navigation between both sway windows and neovim splits.
 It does this using neovim and sway rpc. No neovim plugins are required.
 
