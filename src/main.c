@@ -79,7 +79,6 @@ int focus(char *direction) {
     if (next_nvim_pid != 0) {
       nvim_session_t nvim;
       char *path = nvim_socket_path(next_nvim_pid);
-      printf("NEXT: %s", path);
       nvim_connect(&nvim, path);
       free(path);
       if (strcmp("left", direction) == 0) {
