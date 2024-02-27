@@ -88,7 +88,8 @@ char *nvim_socket_path(pid_t pid) {
   } else {
     char *tmp_dir = getenv("TMPDIR");
     char *user = getenv("USER");
-    int len = strlen(tmp_dir) + strlen(user) + MAX_PID_LEN + 14; // 14 = Template len + null char
+    int len = strlen(tmp_dir) + strlen(user) + MAX_PID_LEN +
+              14; // 14 = Template len + null char
     buffer = malloc(len);
     snprintf(buffer, 2048, "%snvim.%s/nvim.%d.0", tmp_dir, user, pid);
   }
@@ -119,9 +120,7 @@ void nvim_connect(nvim_session_t *session, char *socket_path) {
   session->next_msgid = 0;
 }
 
-void nvim_disconnect(nvim_session_t *session) {
-  close(session->sock);
-}
+void nvim_disconnect(nvim_session_t *session) { close(session->sock); }
 
 void nvim_command(nvim_session_t *session, char *cmd) {
   uint32_t type = 0;
@@ -133,7 +132,7 @@ void nvim_command(nvim_session_t *session, char *cmd) {
   msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
 
   msgpack_pack_array(&pk, 4);
-  msgpack_pack_int(&pk, type); // Type
+  msgpack_pack_int(&pk, type);                   // Type
   msgpack_pack_uint32(&pk, session->next_msgid); // Msgid
   msgpack_pack_str(&pk, strlen(method));
   msgpack_pack_str_body(&pk, method, strlen(method)); // Method
@@ -141,7 +140,7 @@ void nvim_command(nvim_session_t *session, char *cmd) {
   msgpack_pack_str(&pk, strlen(cmd));
   msgpack_pack_str_body(&pk, cmd, strlen(cmd)); // Args
 
-  if(write(session->sock, sbuf.data, sbuf.size) == -1) {
+  if (write(session->sock, sbuf.data, sbuf.size) == -1) {
     fprintf(stderr, "Failed to write\n");
     exit(EXIT_FAILURE);
   }
@@ -163,7 +162,7 @@ msgpack_object nvim_eval(nvim_session_t *session, char *expression) {
   msgpack_packer_init(&pk, &sbuf, msgpack_sbuffer_write);
 
   msgpack_pack_array(&pk, 4);
-  msgpack_pack_int(&pk, type); // Type
+  msgpack_pack_int(&pk, type);                   // Type
   msgpack_pack_uint32(&pk, session->next_msgid); // Msgid
   msgpack_pack_str(&pk, strlen(method));
   msgpack_pack_str_body(&pk, method, strlen(method)); // Method
@@ -171,7 +170,7 @@ msgpack_object nvim_eval(nvim_session_t *session, char *expression) {
   msgpack_pack_str(&pk, strlen(expression));
   msgpack_pack_str_body(&pk, expression, strlen(expression)); // Args
 
-  if(write(session->sock, sbuf.data, sbuf.size) == -1) {
+  if (write(session->sock, sbuf.data, sbuf.size) == -1) {
     fprintf(stderr, "Failed to write\n");
     exit(EXIT_FAILURE);
   }
@@ -222,7 +221,8 @@ msgpack_object nvim_receive(nvim_session_t *session) {
 
   msgpack_object_array array = obj.via.array;
   if (array.size != 4) {
-    fprintf(stderr, "Nvim response array had %d elements (requires 4).\n", array.size);
+    fprintf(stderr, "Nvim response array had %d elements (requires 4).\n",
+            array.size);
     exit(EXIT_FAILURE);
   }
 
@@ -237,7 +237,8 @@ msgpack_object nvim_receive(nvim_session_t *session) {
   }
 
   if (array.ptr[1].type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
-    fprintf(stderr, "Second element of the nvim response was not an integer.\n");
+    fprintf(stderr,
+            "Second element of the nvim response was not an integer.\n");
     exit(EXIT_FAILURE);
   }
   uint64_t msgid = array.ptr[1].via.u64;
@@ -269,22 +270,22 @@ uint64_t nvim_get_focus(nvim_session_t *session) {
 
 char dir_to_key(direction_t direction) {
   char dir;
-  switch(direction) {
-    case LEFT:
-      dir = 'h';
-      break;
-    case RIGHT:
-      dir = 'l';
-      break;
-    case UP:
-      dir = 'k';
-      break;
-    case DOWN:
-      dir = 'j';
-      break;
-    default:
-      fprintf(stderr, "Invalid direction\n");
-      exit(EXIT_FAILURE);
+  switch (direction) {
+  case LEFT:
+    dir = 'h';
+    break;
+  case RIGHT:
+    dir = 'l';
+    break;
+  case UP:
+    dir = 'k';
+    break;
+  case DOWN:
+    dir = 'j';
+    break;
+  default:
+    fprintf(stderr, "Invalid direction\n");
+    exit(EXIT_FAILURE);
   }
   return dir;
 }
@@ -302,7 +303,8 @@ uint64_t nvim_get_next_focus(nvim_session_t *session, direction_t direction) {
   return res.via.u64;
 }
 
-void nvim_move_focus(nvim_session_t *session, direction_t direction, int count) {
+void nvim_move_focus(nvim_session_t *session, direction_t direction,
+                     int count) {
   char key = dir_to_key(direction);
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "wincmd %d %c", count, key);

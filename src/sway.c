@@ -29,17 +29,12 @@ sway_session_t sway_connect(char *socket_path) {
   return sock;
 }
 
-void sway_disconnect(sway_session_t session) {
-  close(session);
-}
+void sway_disconnect(sway_session_t session) { close(session); }
 
 char *sway_get_tree(sway_session_t session) {
   char *buffer;
   struct sway_msg msg = {
-    .magic = SWAY_MAGIC_STR,
-    .length = 0,
-    .type = SWAY_GET_TREE
-  };
+      .magic = SWAY_MAGIC_STR, .length = 0, .type = SWAY_GET_TREE};
   if (write((int)session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);
@@ -59,26 +54,25 @@ char *sway_get_tree(sway_session_t session) {
 void sway_move_focus(sway_session_t session, direction_t direction) {
   char *buffer;
   char *cmd;
-  switch(direction) {
-    case LEFT:
-      cmd = "focus left";
-      break;
-    case RIGHT:
-      cmd = "focus right";
-      break;
-    case UP:
-      cmd = "focus up";
-      break;
-    case DOWN:
-      cmd = "focus down";
-      break;
-    default:
-      fprintf(stderr, "Invalid direction\n");
-      exit(EXIT_FAILURE);
+  switch (direction) {
+  case LEFT:
+    cmd = "focus left";
+    break;
+  case RIGHT:
+    cmd = "focus right";
+    break;
+  case UP:
+    cmd = "focus up";
+    break;
+  case DOWN:
+    cmd = "focus down";
+    break;
+  default:
+    fprintf(stderr, "Invalid direction\n");
+    exit(EXIT_FAILURE);
   }
   struct sway_msg msg = {
-    .magic = SWAY_MAGIC_STR, .length = strlen(cmd), .type = SWAY_RUN_COMMAND
-  };
+      .magic = SWAY_MAGIC_STR, .length = strlen(cmd), .type = SWAY_RUN_COMMAND};
   if (write(session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);

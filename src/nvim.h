@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-extern char** environ;
+extern char **environ;
 
 typedef struct nvim_session {
   int sock;

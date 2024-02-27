@@ -1,5 +1,5 @@
-#include <sys/types.h>
 #include <cjson/cJSON.h>
+#include <sys/types.h>
 
 #include "common.h"
 

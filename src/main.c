@@ -1,22 +1,20 @@
+#include <argp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <argp.h>
 
 #include "common.h"
-#include "sway.h"
 #include "nvim.h"
+#include "sway.h"
 
 const char *argp_program_version = "nvim-sway 0.1.2";
 const char *argp_program_bug_address = "chad@jablonski.xyz";
 static char doc[] =
-  "nvim-sway -- Unified focus of nvim splits and sway windows.";
+    "nvim-sway -- Unified focus of nvim splits and sway windows.";
 static char args_doc[] = "<left|right|up|down>";
 
-static struct argp_option options[] = {
-  { 0 }
-};
+static struct argp_option options[] = {{0}};
 
 struct arguments {
   enum direction direction;
@@ -25,41 +23,36 @@ struct arguments {
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
   struct arguments *arguments = state->input;
 
-  switch(key) {
-    case ARGP_KEY_ARG:
-      if (state->arg_num == 0) {
-        if (strcmp(arg, "left") == 0) {
-          arguments->direction = LEFT;
-        } else if (strcmp(arg, "right") == 0) {
-          arguments->direction = RIGHT;
-        } else if (strcmp(arg, "up") == 0) {
-          arguments->direction = UP;
-        } else if (strcmp(arg, "down") == 0) {
-          arguments->direction = DOWN;
-        } else {
-          argp_usage(state);
-        }
+  switch (key) {
+  case ARGP_KEY_ARG:
+    if (state->arg_num == 0) {
+      if (strcmp(arg, "left") == 0) {
+        arguments->direction = LEFT;
+      } else if (strcmp(arg, "right") == 0) {
+        arguments->direction = RIGHT;
+      } else if (strcmp(arg, "up") == 0) {
+        arguments->direction = UP;
+      } else if (strcmp(arg, "down") == 0) {
+        arguments->direction = DOWN;
       } else {
         argp_usage(state);
       }
+    } else {
+      argp_usage(state);
+    }
     break;
-    case ARGP_KEY_END:
-      if (state->arg_num < 1) {
-        argp_usage(state);
-      }
+  case ARGP_KEY_END:
+    if (state->arg_num < 1) {
+      argp_usage(state);
+    }
     break;
-    default:
-      return ARGP_ERR_UNKNOWN;
+  default:
+    return ARGP_ERR_UNKNOWN;
   }
   return 0;
 }
 
-static struct argp argp = {
-  options,
-  parse_opt,
-  args_doc,
-  doc
-};
+static struct argp argp = {options, parse_opt, args_doc, doc};
 
 int focus(direction_t direction);
 void move_window_focus(sway_session_t sway, direction_t direction);
@@ -139,17 +132,17 @@ void move_window_focus(sway_session_t sway, direction_t direction) {
   nvim_connect(&nvim, path);
   free(path);
   switch (direction) {
-    case LEFT:
-      nvim_move_focus(&nvim, RIGHT, 999);
+  case LEFT:
+    nvim_move_focus(&nvim, RIGHT, 999);
     break;
-    case RIGHT:
-      nvim_move_focus(&nvim, LEFT, 999);
+  case RIGHT:
+    nvim_move_focus(&nvim, LEFT, 999);
     break;
-    case UP:
-      nvim_move_focus(&nvim, DOWN, 999);
+  case UP:
+    nvim_move_focus(&nvim, DOWN, 999);
     break;
-    case DOWN:
-      nvim_move_focus(&nvim, UP, 999);
+  case DOWN:
+    nvim_move_focus(&nvim, UP, 999);
     break;
   }
   nvim_disconnect(&nvim);
