@@ -7,7 +7,7 @@
 #include "sway.h"
 #include "nvim.h"
 
-const char *argp_program_version = "nvim-sway 0.1.1";
+const char *argp_program_version = "nvim-sway 0.1.2";
 const char *argp_program_bug_address = "chad@jablonski.xyz";
 static char doc[] =
   "nvim-sway -- Unified focus of nvim splits and sway windows.";
@@ -56,6 +56,7 @@ static struct argp argp = {
 };
 
 int focus(char *direction);
+void move_window_focus(sway_session_t sway, char *direction);
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
@@ -67,47 +68,77 @@ int main(int argc, char *argv[]) {
 
 int focus(char *direction) {
   char *sway_socket_path = getenv("SWAYSOCK");
-
   sway_session_t sway = sway_connect(sway_socket_path);
-  pid_t focused_pid = sway_get_focused_pid(sway);
-  pid_t nvim_pid = find_nvim_pid(focused_pid);
 
-  if (nvim_pid == 0) {
-    sway_move_focus(sway, direction);
-    pid_t next_focused_pid = sway_get_focused_pid(sway);
-    pid_t next_nvim_pid = find_nvim_pid(next_focused_pid);
-    if (next_nvim_pid != 0) {
-      nvim_session_t nvim;
-      char *path = nvim_socket_path(next_nvim_pid);
-      nvim_connect(&nvim, path);
-      free(path);
-      if (strcmp("left", direction) == 0) {
-        nvim_move_focus(&nvim, "right", 999);
-      } else if (strcmp("right", direction) == 0) {
-        nvim_move_focus(&nvim, "left", 999);
-      } else if (strcmp("up", direction) == 0) {
-        nvim_move_focus(&nvim, "down", 999);
-      } else if (strcmp("down", direction) == 0) {
-        nvim_move_focus(&nvim, "up", 999);
-      }
-      nvim_disconnect(&nvim);
-    }
-    sway_disconnect(sway);
-    return 0;
+  pid_t focused_pid = sway_get_focused_pid(sway);
+  if (focused_pid == 0) {
+    // In this case no window was focused.
+    // We still want to move the sway focus in the direction specified.
+    move_window_focus(sway, direction);
+    goto end;
   }
 
+  pid_t nvim_pid = find_nvim_pid(focused_pid);
+  if (nvim_pid == 0) {
+    // The currently focused window does not contain a neovim instance.
+    // Move the sway focus in the direction specified.
+    move_window_focus(sway, direction);
+    goto end;
+  }
+
+  // An instance of neovim was found in the currently focused window.
   nvim_session_t nvim;
   char *path = nvim_socket_path(nvim_pid);
   nvim_connect(&nvim, path);
   free(path);
 
   if (nvim_get_focus(&nvim) == nvim_get_next_focus(&nvim, direction)) {
-    sway_move_focus(sway, direction);
+    // There are no more nvim splits in this direction.
+    // Move the sway window focus.
+    move_window_focus(sway, direction);
   } else {
+    // There _is_ a split in this direction.
+    // Move the nvim split focus.
     nvim_move_focus(&nvim, direction, 1);
   }
-
   nvim_disconnect(&nvim);
+
+end:
   sway_disconnect(sway);
   return 0;
+}
+
+void move_window_focus(sway_session_t sway, char *direction) {
+  sway_move_focus(sway, direction);
+
+  pid_t next_focused_pid = sway_get_focused_pid(sway);
+  if (next_focused_pid == 0) {
+    // After the move no window is focused
+    return;
+  }
+
+  pid_t next_nvim_pid = find_nvim_pid(next_focused_pid);
+  if (next_nvim_pid == 0) {
+    // The window we just moved focus to does _not_
+    // contain an nvim instance.
+    return;
+  }
+
+  // The newly focused window contains an nvim instance.
+  // This means the split closest to the window from
+  // which we're moving should be focused.
+  nvim_session_t nvim;
+  char *path = nvim_socket_path(next_nvim_pid);
+  nvim_connect(&nvim, path);
+  free(path);
+  if (strcmp("left", direction) == 0) {
+    nvim_move_focus(&nvim, "right", 999);
+  } else if (strcmp("right", direction) == 0) {
+    nvim_move_focus(&nvim, "left", 999);
+  } else if (strcmp("up", direction) == 0) {
+    nvim_move_focus(&nvim, "down", 999);
+  } else if (strcmp("down", direction) == 0) {
+    nvim_move_focus(&nvim, "up", 999);
+  }
+  nvim_disconnect(&nvim);
 }
