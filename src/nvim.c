@@ -267,24 +267,29 @@ uint64_t nvim_get_focus(nvim_session_t *session) {
   return res.via.u64;
 }
 
-char dir_to_key(char *direction) {
+char dir_to_key(direction_t direction) {
   char dir;
-  if (strcmp(direction, "left") == 0) {
-    dir = 'h';
-  } else if (strcmp(direction, "right") == 0) {
-    dir = 'l';
-  } else if (strcmp(direction, "up") == 0) {
-    dir = 'k';
-  } else if (strcmp(direction, "down") == 0) {
-    dir = 'j';
-  } else {
-    fprintf(stderr, "Invalid direction\n");
-    exit(EXIT_FAILURE);
+  switch(direction) {
+    case LEFT:
+      dir = 'h';
+      break;
+    case RIGHT:
+      dir = 'l';
+      break;
+    case UP:
+      dir = 'k';
+      break;
+    case DOWN:
+      dir = 'j';
+      break;
+    default:
+      fprintf(stderr, "Invalid direction\n");
+      exit(EXIT_FAILURE);
   }
   return dir;
 }
 
-uint64_t nvim_get_next_focus(nvim_session_t *session, char *direction) {
+uint64_t nvim_get_next_focus(nvim_session_t *session, direction_t direction) {
   char key = dir_to_key(direction);
   char buffer[11];
   snprintf(buffer, sizeof(buffer), "winnr('%c')", key);
@@ -297,7 +302,7 @@ uint64_t nvim_get_next_focus(nvim_session_t *session, char *direction) {
   return res.via.u64;
 }
 
-void nvim_move_focus(nvim_session_t *session, char *direction, int count) {
+void nvim_move_focus(nvim_session_t *session, direction_t direction, int count) {
   char key = dir_to_key(direction);
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "wincmd %d %c", count, key);

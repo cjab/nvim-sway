@@ -56,18 +56,34 @@ char *sway_get_tree(sway_session_t session) {
   return buffer;
 }
 
-char *sway_move_focus(sway_session_t session, char *direction) {
+void sway_move_focus(sway_session_t session, direction_t direction) {
   char *buffer;
-  char cmd_buffer[12];
-  snprintf(cmd_buffer, sizeof(cmd_buffer), "focus %s", direction);
+  char *cmd;
+  switch(direction) {
+    case LEFT:
+      cmd = "focus left";
+      break;
+    case RIGHT:
+      cmd = "focus right";
+      break;
+    case UP:
+      cmd = "focus up";
+      break;
+    case DOWN:
+      cmd = "focus down";
+      break;
+    default:
+      fprintf(stderr, "Invalid direction\n");
+      exit(EXIT_FAILURE);
+  }
   struct sway_msg msg = {
-    .magic = SWAY_MAGIC_STR, .length = strlen(cmd_buffer), .type = SWAY_RUN_COMMAND
+    .magic = SWAY_MAGIC_STR, .length = strlen(cmd), .type = SWAY_RUN_COMMAND
   };
   if (write(session, &msg, sizeof(struct sway_msg)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  if (write(session, &cmd_buffer, strlen(cmd_buffer)) == -1) {
+  if (write(session, cmd, strlen(cmd)) == -1) {
     fprintf(stderr, "Failed to write to sway socket\n");
     exit(EXIT_FAILURE);
   }
@@ -80,7 +96,7 @@ char *sway_move_focus(sway_session_t session, char *direction) {
     fprintf(stderr, "Failed to read to sway socket\n");
     exit(EXIT_FAILURE);
   }
-  return buffer;
+  free(buffer);
 }
 
 pid_t sway_get_focused_pid(sway_session_t session) {

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <argp.h>
 
+#include "common.h"
 #include "sway.h"
 #include "nvim.h"
 
@@ -18,7 +19,7 @@ static struct argp_option options[] = {
 };
 
 struct arguments {
-  char *direction;
+  enum direction direction;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -27,9 +28,14 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
   switch(key) {
     case ARGP_KEY_ARG:
       if (state->arg_num == 0) {
-        if (strcmp(arg, "left") == 0 || strcmp(arg, "right") == 0 ||
-            strcmp(arg, "up") == 0 || strcmp(arg, "down") == 0) {
-          arguments->direction = arg;
+        if (strcmp(arg, "left") == 0) {
+          arguments->direction = LEFT;
+        } else if (strcmp(arg, "right") == 0) {
+          arguments->direction = RIGHT;
+        } else if (strcmp(arg, "up") == 0) {
+          arguments->direction = UP;
+        } else if (strcmp(arg, "down") == 0) {
+          arguments->direction = DOWN;
         } else {
           argp_usage(state);
         }
@@ -55,8 +61,8 @@ static struct argp argp = {
   doc
 };
 
-int focus(char *direction);
-void move_window_focus(sway_session_t sway, char *direction);
+int focus(direction_t direction);
+void move_window_focus(sway_session_t sway, direction_t direction);
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
@@ -66,7 +72,8 @@ int main(int argc, char *argv[]) {
   return focus(arguments.direction);
 }
 
-int focus(char *direction) {
+int focus(direction_t direction) {
+
   char *sway_socket_path = getenv("SWAYSOCK");
   sway_session_t sway = sway_connect(sway_socket_path);
 
@@ -108,7 +115,7 @@ end:
   return 0;
 }
 
-void move_window_focus(sway_session_t sway, char *direction) {
+void move_window_focus(sway_session_t sway, direction_t direction) {
   sway_move_focus(sway, direction);
 
   pid_t next_focused_pid = sway_get_focused_pid(sway);
@@ -131,14 +138,19 @@ void move_window_focus(sway_session_t sway, char *direction) {
   char *path = nvim_socket_path(next_nvim_pid);
   nvim_connect(&nvim, path);
   free(path);
-  if (strcmp("left", direction) == 0) {
-    nvim_move_focus(&nvim, "right", 999);
-  } else if (strcmp("right", direction) == 0) {
-    nvim_move_focus(&nvim, "left", 999);
-  } else if (strcmp("up", direction) == 0) {
-    nvim_move_focus(&nvim, "down", 999);
-  } else if (strcmp("down", direction) == 0) {
-    nvim_move_focus(&nvim, "up", 999);
+  switch (direction) {
+    case LEFT:
+      nvim_move_focus(&nvim, RIGHT, 999);
+    break;
+    case RIGHT:
+      nvim_move_focus(&nvim, LEFT, 999);
+    break;
+    case UP:
+      nvim_move_focus(&nvim, DOWN, 999);
+    break;
+    case DOWN:
+      nvim_move_focus(&nvim, UP, 999);
+    break;
   }
   nvim_disconnect(&nvim);
 }
