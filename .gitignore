@@ -3,3 +3,4 @@
 *.o
 nvim-sway
 result
+compile_commands.json

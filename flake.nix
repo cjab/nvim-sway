@@ -17,10 +17,12 @@
             stdenv
             cjson
             msgpack-c
+            python312Packages.compiledb
           ];
 
           shellHook = ''
             set -e
+            compiledb -n make
           '';
         };
       }
