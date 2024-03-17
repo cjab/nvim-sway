@@ -1,5 +1,15 @@
+ifeq ($(shell uname -s),Linux)
+    ifeq ($(shell grep -q 'NixOS' /etc/os-release && echo $$?),0)
+        MSGPACK_LIB = -lmsgpack-c
+    else
+        MSGPACK_LIB = -lmsgpackc
+    endif
+else
+    MSGPACK_LIB = -lmsgpackc
+endif
+
 CC = gcc
-CFLAGS = -Wall -lcjson -lmsgpack-c
+CFLAGS = -Wall -lcjson $(MSGPACK_LIB)
 
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
