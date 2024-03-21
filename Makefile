@@ -1,12 +1,14 @@
 ifeq ($(shell uname -s),Linux)
     ifeq ($(shell grep -q 'NixOS' /etc/os-release && echo $$?),0)
-        MSGPACK_LIB = -lmsgpack-c
+        DEFAULT_MSGPACK_LIB = -lmsgpack-c
     else
-        MSGPACK_LIB = -lmsgpackc
+        DEFAULT_MSGPACK_LIB = -lmsgpackc
     endif
 else
-    MSGPACK_LIB = -lmsgpackc
+    DEFAULT_MSGPACK_LIB = -lmsgpackc
 endif
+
+MSGPACK_LIB ?= $(DEFAULT_MSGPACK_LIB)
 
 CC = gcc
 CFLAGS = -Wall -lcjson $(MSGPACK_LIB)

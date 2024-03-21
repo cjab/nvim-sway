@@ -11,7 +11,7 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ cjson msgpack-c ];
 
   buildPhase = ''
-    make
+    make MSGPACK_LIB=-lmsgpack-c
   '';
 
   installPhase = ''
