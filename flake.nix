@@ -18,6 +18,7 @@
             cjson
             msgpack-c
             python312Packages.compiledb
+            gdb
           ];
 
           shellHook = ''
