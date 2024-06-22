@@ -20,6 +20,7 @@ void sway_disconnect(sway_session_t session);
 
 char *sway_get_tree(sway_session_t session);
 void sway_move_focus(sway_session_t session, direction_t direction);
+void sway_move_output_focus(sway_session_t session, direction_t direction);
 pid_t sway_get_focused_pid(sway_session_t session);
 
 pid_t find_focused_pid_in_tree(cJSON *root);

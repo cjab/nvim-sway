@@ -93,6 +93,48 @@ void sway_move_focus(sway_session_t session, direction_t direction) {
   free(buffer);
 }
 
+void sway_move_output_focus(sway_session_t session, direction_t direction) {
+  char *buffer;
+  char *cmd;
+  switch (direction) {
+  case LEFT:
+    cmd = "focus output left";
+    break;
+  case RIGHT:
+    cmd = "focus output right";
+    break;
+  case UP:
+    cmd = "focus output up";
+    break;
+  case DOWN:
+    cmd = "focus output down";
+    break;
+  default:
+    fprintf(stderr, "Invalid direction\n");
+    exit(EXIT_FAILURE);
+  }
+  struct sway_msg msg = {
+      .magic = SWAY_MAGIC_STR, .length = strlen(cmd), .type = SWAY_RUN_COMMAND};
+  if (write(session, &msg, sizeof(struct sway_msg)) == -1) {
+    fprintf(stderr, "Failed to write to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  if (write(session, cmd, strlen(cmd)) == -1) {
+    fprintf(stderr, "Failed to write to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  if (read(session, &msg, sizeof(struct sway_msg)) == -1) {
+    fprintf(stderr, "Failed to read to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  buffer = malloc(msg.length);
+  if (read(session, buffer, msg.length) == -1) {
+    fprintf(stderr, "Failed to read to sway socket\n");
+    exit(EXIT_FAILURE);
+  }
+  free(buffer);
+}
+
 pid_t sway_get_focused_pid(sway_session_t session) {
   char *tree = sway_get_tree(session);
   cJSON *json = cJSON_Parse(tree);

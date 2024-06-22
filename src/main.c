@@ -1,5 +1,4 @@
 #include <argp.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -106,6 +105,10 @@ int focus(direction_t direction) {
 end:
   sway_disconnect(sway);
   return 0;
+}
+
+void move_output_focus(sway_session_t sway, direction_t direction) {
+  sway_move_output_focus(sway, direction);
 }
 
 void move_window_focus(sway_session_t sway, direction_t direction) {

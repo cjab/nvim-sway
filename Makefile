@@ -11,7 +11,7 @@ endif
 MSGPACK_LIB ?= $(DEFAULT_MSGPACK_LIB)
 
 CC = gcc
-CFLAGS = -Wall -lcjson $(MSGPACK_LIB)
+CFLAGS = -Wall -lcjson $(MSGPACK_LIB) -Wl,-z,relro,-z,now
 
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
