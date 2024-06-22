@@ -119,7 +119,9 @@ pid_t find_focused_pid_in_tree(cJSON *root) {
   const cJSON *focused = cJSON_GetObjectItemCaseSensitive(root, "focused");
   if (cJSON_IsTrue(focused)) {
     const cJSON *pid = cJSON_GetObjectItemCaseSensitive(root, "pid");
-    return pid->valueint;
+    if (pid != 0) {
+      return pid->valueint;
+    }
   }
   const cJSON *nodes = cJSON_GetObjectItemCaseSensitive(root, "nodes");
   cJSON *curr_node;
