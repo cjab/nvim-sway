@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <errno.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -98,10 +99,20 @@ char *nvim_socket_path(pid_t pid) {
 
 void nvim_connect(nvim_session_t *session, char *socket_path) {
   struct sockaddr_un server_addr;
+  struct timeval timeout;
   int sock;
 
   if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
+    exit(EXIT_FAILURE);
+  }
+
+  // Set receive timeout to 250ms
+  timeout.tv_sec = 0;
+  timeout.tv_usec = 250000;
+  if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+    perror("setsockopt");
+    close(sock);
     exit(EXIT_FAILURE);
   }
 
@@ -147,7 +158,11 @@ void nvim_command(nvim_session_t *session, char *cmd) {
 
   // We're not interested in the response of the command
   // but we still need to move past it.
-  nvim_receive(session);
+  msgpack_object dummy;
+  if (nvim_receive(session, &dummy) == -1) {
+    // Timeout occurred, just return without error
+    return;
+  }
 
   session->next_msgid += 1;
 }
@@ -175,27 +190,37 @@ msgpack_object nvim_eval(nvim_session_t *session, char *expression) {
     exit(EXIT_FAILURE);
   }
 
-  msgpack_object res = nvim_receive(session);
+  msgpack_object res;
+  if (nvim_receive(session, &res) == -1) {
+    // Timeout occurred, return a nil object
+    msgpack_object nil_obj = {.type = MSGPACK_OBJECT_NIL};
+    session->next_msgid += 1;
+    return nil_obj;
+  }
   session->next_msgid += 1;
 
   return res;
 }
 
-msgpack_object nvim_receive(nvim_session_t *session) {
+int nvim_receive(nvim_session_t *session, msgpack_object *result) {
   char buffer[UNPACKED_BUFFER_SIZE];
 
   int len = read(session->sock, &buffer, sizeof(buffer));
   if (len == -1) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      // Timeout occurred
+      return -1;
+    }
     fprintf(stderr, "Failed to read\n");
     exit(EXIT_FAILURE);
   }
 
-  msgpack_unpacked result;
-  msgpack_unpacked_init(&result);
+  msgpack_unpacked unpacked;
+  msgpack_unpacked_init(&unpacked);
 
   size_t off = 0;
   msgpack_unpack_return ret;
-  ret = msgpack_unpack_next(&result, buffer, len, &off);
+  ret = msgpack_unpack_next(&unpacked, buffer, len, &off);
 
   if (ret == MSGPACK_UNPACK_PARSE_ERROR) {
     fprintf(stderr, "Failed to parse received nvim message.\n");
@@ -212,7 +237,7 @@ msgpack_object nvim_receive(nvim_session_t *session) {
   }
 
   // MSGPACK_UNPACK_SUCCESS
-  msgpack_object obj = result.data;
+  msgpack_object obj = unpacked.data;
 
   if (obj.type != MSGPACK_OBJECT_ARRAY) {
     fprintf(stderr, "Nvim response was not an array.\n");
@@ -252,15 +277,19 @@ msgpack_object nvim_receive(nvim_session_t *session) {
     exit(EXIT_FAILURE);
   }
 
-  msgpack_object payload = array.ptr[3];
-  msgpack_unpacked_destroy(&result);
+  *result = array.ptr[3];
+  msgpack_unpacked_destroy(&unpacked);
 
-  return payload;
+  return 0;
 }
 
 uint64_t nvim_get_focus(nvim_session_t *session) {
   msgpack_object res = nvim_eval(session, "winnr()");
 
+  if (res.type == MSGPACK_OBJECT_NIL) {
+    // Timeout occurred, return 0 to indicate failure
+    return 0;
+  }
   if (res.type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
     fprintf(stderr, "Invalid nvim_get_focus response\n");
     exit(EXIT_FAILURE);
@@ -295,6 +324,10 @@ uint64_t nvim_get_next_focus(nvim_session_t *session, direction_t direction) {
   char buffer[11];
   snprintf(buffer, sizeof(buffer), "winnr('%c')", key);
   msgpack_object res = nvim_eval(session, buffer);
+  if (res.type == MSGPACK_OBJECT_NIL) {
+    // Timeout occurred, return 0 to indicate failure
+    return 0;
+  }
   if (res.type != MSGPACK_OBJECT_POSITIVE_INTEGER) {
     fprintf(stderr, "Invalid nvim_get_focus response\n");
     exit(EXIT_FAILURE);

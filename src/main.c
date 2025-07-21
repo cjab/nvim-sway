@@ -92,7 +92,13 @@ int focus(direction_t direction) {
   nvim_connect(&nvim, path);
   free(path);
 
-  if (nvim_get_focus(&nvim) == nvim_get_next_focus(&nvim, direction)) {
+  uint64_t current_focus = nvim_get_focus(&nvim);
+  uint64_t next_focus = nvim_get_next_focus(&nvim, direction);
+
+  if (current_focus == 0 || next_focus == 0) {
+    // Timeout occurred, fallback to sway navigation
+    move_window_focus(sway, direction);
+  } else if (current_focus == next_focus) {
     // There are no more nvim splits in this direction.
     // Move the sway window focus.
     move_window_focus(sway, direction);

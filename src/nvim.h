@@ -22,4 +22,4 @@ uint64_t nvim_get_focus(nvim_session_t *session);
 uint64_t nvim_get_next_focus(nvim_session_t *session, direction_t direction);
 void nvim_move_focus(nvim_session_t *session, direction_t direction, int count);
 
-msgpack_object nvim_receive(nvim_session_t *session);
+int nvim_receive(nvim_session_t *session, msgpack_object *result);
