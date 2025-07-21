@@ -8,7 +8,7 @@
 #include "nvim.h"
 #include "sway.h"
 
-const char *argp_program_version = "nvim-sway 0.1.3";
+const char *argp_program_version = "nvim-sway 0.2.0";
 const char *argp_program_bug_address = "chad@jablonski.xyz";
 static char doc[] =
     "nvim-sway -- Unified focus of nvim splits and sway windows.";
