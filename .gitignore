@@ -1,6 +1,7 @@
 .direnv
 .cache
 *.o
+*.local
 nvim-sway
 result
 compile_commands.json

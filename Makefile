@@ -1,17 +1,8 @@
-ifeq ($(shell uname -s),Linux)
-    ifeq ($(shell grep -q 'NixOS' /etc/os-release && echo $$?),0)
-        DEFAULT_MSGPACK_LIB = -lmsgpack-c
-    else
-        DEFAULT_MSGPACK_LIB = -lmsgpackc
-    endif
-else
-    DEFAULT_MSGPACK_LIB = -lmsgpackc
-endif
-
-MSGPACK_LIB ?= $(DEFAULT_MSGPACK_LIB)
+MSGPACK_LIB = $$(pkg-config msgpack-c --libs)
+CJSON_LIB = $$(pkg-config libcjson --libs)
 
 CC = gcc
-CFLAGS = -Wall -lcjson $(MSGPACK_LIB)
+CFLAGS = -Wall $(CJSON_LIB) $(MSGPACK_LIB)
 
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin

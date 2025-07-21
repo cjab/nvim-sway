@@ -2,17 +2,14 @@
 , stdenv
 , cjson
 , msgpack-c
+, pkg-config
 }:
 
 stdenv.mkDerivation {
   pname = "nvim-sway";
   version = "0.1";
   src = lib.cleanSource ../.;
-  nativeBuildInputs = [ cjson msgpack-c ];
-
-  buildPhase = ''
-    make MSGPACK_LIB=-lmsgpack-c
-  '';
+  nativeBuildInputs = [ cjson msgpack-c pkg-config ];
 
   installPhase = ''
     mkdir -p $out/bin
