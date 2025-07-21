@@ -3,7 +3,7 @@
 nvim-sway \- navigate between sway windows and neovim splits
 .SH SYNOPSIS
 .B nvim-sway
-\fR<\fIleft\fR|\fIright\fR|\fIup\fR|\fIdown\fR>
+[\fB\-t\fR \fItimeout\fR] \fR<\fIleft\fR|\fIright\fR|\fIup\fR|\fIdown\fR>
 .SH DESCRIPTION
 .B nvim-sway
 allows navigation between both sway windows and neovim splits.
@@ -14,6 +14,9 @@ However, it does require a recent version of neovim.
 The neovim socket is found by first finding the pid of the target neovim instance and then searching for in the standard neovim socket locations.
 These are \%"\fI$XDG_RUNTIME_DIR\fR"\: and \%"\fI$TMPDIR/nvim.$USER\fR"\:.
 .SH OPTIONS
+.TP
+.BR \-t ", " \-\-timeout=\fIMS\fR
+Set neovim IPC timeout in milliseconds (default: 100). Use 0 for no timeout.
 .TP
 .BR \-? ", " \-\-help
 Print a help message.
@@ -41,14 +44,14 @@ If \%"\fI$XDG_RUNTIME_DIR\fR"\: is not set the tmp directory will be searched fo
 .BR nvim-sway " " left
 Move neovim split or sway window focus to the left.
 .TP
-.BR nvim-sway " " right
-Move neovim split or sway window focus to the right.
+.BR nvim-sway " " \-t " " 50 " " right
+Move focus to the right with a 50ms timeout.
 .TP
-.BR nvim-sway " " up
-Move neovim split or sway window focus up.
+.BR nvim-sway " " \-t " " 0 " " up
+Move focus up with no timeout (blocks until neovim responds).
 .TP
 .BR nvim-sway " " down
-Move neovim split or sway window focus down.
+Move neovim split or sway window focus down (uses default 100ms timeout).
 .SH AUTHORS
 Maintained by Chad Jablonski <chad@jablonski.xyz>.
 For more information about nvim-sway development, see <https://github.com/cjab/nvim-sway>.

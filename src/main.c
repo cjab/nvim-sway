@@ -14,16 +14,30 @@ static char doc[] =
     "nvim-sway -- Unified focus of nvim splits and sway windows.";
 static char args_doc[] = "<left|right|up|down>";
 
-static struct argp_option options[] = {{0}};
+static struct argp_option options[] = {
+  {"timeout", 't', "MS", 0, "Set nvim IPC timeout in milliseconds (default: 100)"},
+  {0}
+};
 
 struct arguments {
   enum direction direction;
+  int timeout_ms;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
   struct arguments *arguments = state->input;
 
   switch (key) {
+  case 't':
+    {
+      char *endptr;
+      long timeout = strtol(arg, &endptr, 10);
+      if (*endptr != '\0' || endptr == arg) {
+        argp_error(state, "Invalid timeout value: %s", arg);
+      }
+      arguments->timeout_ms = (int)timeout;
+    }
+    break;
   case ARGP_KEY_ARG:
     if (state->arg_num == 0) {
       if (strcmp(arg, "left") == 0) {
@@ -41,6 +55,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
       argp_usage(state);
     }
     break;
+  case ARGP_KEY_INIT:
+    arguments->timeout_ms = 100; // Default timeout
+    break;
   case ARGP_KEY_END:
     if (state->arg_num < 1) {
       argp_usage(state);
@@ -54,18 +71,18 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
-int focus(direction_t direction);
-void move_window_focus(sway_session_t sway, direction_t direction);
+int focus(direction_t direction, int timeout_ms);
+void move_window_focus(sway_session_t sway, direction_t direction, int timeout_ms);
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
 
   argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-  return focus(arguments.direction);
+  return focus(arguments.direction, arguments.timeout_ms);
 }
 
-int focus(direction_t direction) {
+int focus(direction_t direction, int timeout_ms) {
 
   char *sway_socket_path = getenv("SWAYSOCK");
   sway_session_t sway = sway_connect(sway_socket_path);
@@ -74,7 +91,7 @@ int focus(direction_t direction) {
   if (focused_pid == 0) {
     // In this case no window was focused.
     // We still want to move the sway focus in the direction specified.
-    move_window_focus(sway, direction);
+    move_window_focus(sway, direction, timeout_ms);
     goto end;
   }
 
@@ -82,14 +99,14 @@ int focus(direction_t direction) {
   if (nvim_pid == 0) {
     // The currently focused window does not contain a neovim instance.
     // Move the sway focus in the direction specified.
-    move_window_focus(sway, direction);
+    move_window_focus(sway, direction, timeout_ms);
     goto end;
   }
 
   // An instance of neovim was found in the currently focused window.
   nvim_session_t nvim;
   char *path = nvim_socket_path(nvim_pid);
-  nvim_connect(&nvim, path);
+  nvim_connect(&nvim, path, timeout_ms);
   free(path);
 
   uint64_t current_focus = nvim_get_focus(&nvim);
@@ -97,11 +114,11 @@ int focus(direction_t direction) {
 
   if (current_focus == 0 || next_focus == 0) {
     // Timeout occurred, fallback to sway navigation
-    move_window_focus(sway, direction);
+    move_window_focus(sway, direction, timeout_ms);
   } else if (current_focus == next_focus) {
     // There are no more nvim splits in this direction.
     // Move the sway window focus.
-    move_window_focus(sway, direction);
+    move_window_focus(sway, direction, timeout_ms);
   } else {
     // There _is_ a split in this direction.
     // Move the nvim split focus.
@@ -114,7 +131,7 @@ end:
   return 0;
 }
 
-void move_window_focus(sway_session_t sway, direction_t direction) {
+void move_window_focus(sway_session_t sway, direction_t direction, int timeout_ms) {
   sway_move_focus(sway, direction);
 
   pid_t next_focused_pid = sway_get_focused_pid(sway);
@@ -135,7 +152,7 @@ void move_window_focus(sway_session_t sway, direction_t direction) {
   // which we're moving should be focused.
   nvim_session_t nvim;
   char *path = nvim_socket_path(next_nvim_pid);
-  nvim_connect(&nvim, path);
+  nvim_connect(&nvim, path, timeout_ms);
   free(path);
   switch (direction) {
   case LEFT:

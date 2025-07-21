@@ -97,9 +97,8 @@ char *nvim_socket_path(pid_t pid) {
   return buffer;
 }
 
-void nvim_connect(nvim_session_t *session, char *socket_path) {
+void nvim_connect(nvim_session_t *session, char *socket_path, int timeout_ms) {
   struct sockaddr_un server_addr;
-  struct timeval timeout;
   int sock;
 
   if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
@@ -107,13 +106,16 @@ void nvim_connect(nvim_session_t *session, char *socket_path) {
     exit(EXIT_FAILURE);
   }
 
-  // Set receive timeout to 250ms
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 250000;
-  if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
-    perror("setsockopt");
-    close(sock);
-    exit(EXIT_FAILURE);
+  // Set receive timeout if timeout_ms > 0 (0 means no timeout)
+  if (timeout_ms > 0) {
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = timeout_ms * 1000;
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+      perror("setsockopt");
+      close(sock);
+      exit(EXIT_FAILURE);
+    }
   }
 
   memset(&server_addr, 0, sizeof(struct sockaddr_un));
