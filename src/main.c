@@ -1,5 +1,4 @@
 #include <argp.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -7,6 +6,9 @@
 #include "common.h"
 #include "nvim.h"
 #include "sway.h"
+
+// Used to move to the split closest to the edge of the nvim window
+#define NVIM_MOVE_MAX 999
 
 const char *argp_program_version = "nvim-sway 0.2.0";
 const char *argp_program_bug_address = "chad@jablonski.xyz";
@@ -156,16 +158,16 @@ void move_window_focus(sway_session_t sway, direction_t direction, int timeout_m
   free(path);
   switch (direction) {
   case LEFT:
-    nvim_move_focus(&nvim, RIGHT, 999);
+    nvim_move_focus(&nvim, RIGHT, NVIM_MOVE_MAX);
     break;
   case RIGHT:
-    nvim_move_focus(&nvim, LEFT, 999);
+    nvim_move_focus(&nvim, LEFT, NVIM_MOVE_MAX);
     break;
   case UP:
-    nvim_move_focus(&nvim, DOWN, 999);
+    nvim_move_focus(&nvim, DOWN, NVIM_MOVE_MAX);
     break;
   case DOWN:
-    nvim_move_focus(&nvim, UP, 999);
+    nvim_move_focus(&nvim, UP, NVIM_MOVE_MAX);
     break;
   }
   nvim_disconnect(&nvim);
