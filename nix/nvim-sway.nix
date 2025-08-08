@@ -7,7 +7,7 @@
 
 stdenv.mkDerivation {
   pname = "nvim-sway";
-  version = "0.1";
+  version = "0.2.2";
   src = lib.cleanSource ../.;
   nativeBuildInputs = [ cjson msgpack-c pkg-config ];
 

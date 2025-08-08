@@ -10,7 +10,7 @@
 // Used to move to the split closest to the edge of the nvim window
 #define NVIM_MOVE_MAX 999
 
-const char *argp_program_version = "nvim-sway 0.2.0";
+const char *argp_program_version = "nvim-sway 0.2.2";
 const char *argp_program_bug_address = "chad@jablonski.xyz";
 static char doc[] =
     "nvim-sway -- Unified focus of nvim splits and sway windows.";
