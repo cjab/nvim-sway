@@ -17,7 +17,15 @@ sway_session_t sway_connect(char *socket_path) {
 
   memset(&server_addr, 0, sizeof(struct sockaddr_un));
   server_addr.sun_family = AF_UNIX;
-  strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
+
+  if (
+    snprintf(server_addr.sun_path, sizeof(server_addr.sun_path), "%s", socket_path) >
+    sizeof(server_addr.sun_path)
+  ) {
+    fprintf(stderr, "Sway socket path too long: %s\n", socket_path);
+    close(sock);
+    exit(EXIT_FAILURE);
+  }
 
   if (connect(sock, (struct sockaddr *)&server_addr,
               sizeof(struct sockaddr_un)) == -1) {
