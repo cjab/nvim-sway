@@ -120,7 +120,15 @@ void nvim_connect(nvim_session_t *session, char *socket_path, int timeout_ms) {
 
   memset(&server_addr, 0, sizeof(struct sockaddr_un));
   server_addr.sun_family = AF_UNIX;
-  strncpy(server_addr.sun_path, socket_path, sizeof(server_addr.sun_path) - 1);
+
+  if (
+    snprintf(server_addr.sun_path, sizeof(server_addr.sun_path), "%s", socket_path) >
+    sizeof(server_addr.sun_path)
+  ) {
+    fprintf(stderr, "Nvim socket path too long: %s\n", socket_path);
+    close(sock);
+    exit(EXIT_FAILURE);
+  }
 
   if (connect(sock, (struct sockaddr *)&server_addr,
               sizeof(struct sockaddr_un)) == -1) {
