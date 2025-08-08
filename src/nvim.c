@@ -92,7 +92,7 @@ char *nvim_socket_path(pid_t pid) {
     int len = strlen(tmp_dir) + strlen(user) + MAX_PID_LEN +
               14; // 14 = Template len + null char
     buffer = malloc(len);
-    snprintf(buffer, 2048, "%snvim.%s/nvim.%d.0", tmp_dir, user, pid);
+    snprintf(buffer, len, "%snvim.%s/nvim.%d.0", tmp_dir, user, pid);
   }
   return buffer;
 }
