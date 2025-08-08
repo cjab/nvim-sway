@@ -8,13 +8,15 @@ PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 MANDIR = $(PREFIX)/share/man/man1
 
+COMMON_DEPS = src/common.h
+
 nvim-sway: src/main.c nvim.o sway.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-nvim.o: src/nvim.c
+nvim.o: src/nvim.c src/nvim.h $(COMMON_DEPS)
 	$(CC) $(CFLAGS) -c $^
 
-sway.o: src/sway.c
+sway.o: src/sway.c src/sway.h $(COMMON_DEPS)
 	$(CC) $(CFLAGS) -c $^
 
 install:
@@ -30,4 +32,4 @@ uninstall:
 	rmdir --ignore-fail-on-non-empty $(MANDIR)
 
 clean:
-	rm -f *.o nvim-sway
+	rm -f *.o **/*.gch nvim-sway

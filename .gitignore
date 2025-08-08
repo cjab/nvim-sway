@@ -1,6 +1,7 @@
 .direnv
 .cache
 *.o
+*.gch
 *.local
 nvim-sway
 result
